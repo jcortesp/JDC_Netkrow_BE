@@ -1,3 +1,4 @@
+// src/main/java/com/netkrow/backend/config/CorsConfig.java
 package com.netkrow.backend.config;
 
 import org.springframework.context.annotation.Bean;
@@ -16,8 +17,8 @@ public class CorsConfig {
                 registry.addMapping("/api/**")
                         .allowedOrigins(
                                 "http://localhost:5173",
-                                "https://netkrow-fe.vercel.app",  // tu frontend en Vercel
-                                "https://netkrow.onrender.com"    // tu backend en Render
+                                "https://netkrow-fe.vercel.app",
+                                "https://netkrow.onrender.com"
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowCredentials(true);
