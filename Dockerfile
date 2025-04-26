@@ -1,14 +1,13 @@
 # 1) Build con Maven + JDK17
-FROM maven:3.10.1-jdk-17 AS builder
+FROM maven:3.10.1-openjdk-17 AS builder
 WORKDIR /app
 
-# Copiamos pom y descargamos dependencias offline
-COPY pom.xml mvnw ./
-COPY .mvn .mvn
+# Copiamos pom y wrapper para descargar dependencias offline
+COPY pom.xml mvnw .mvn/ ./
 RUN mvn dependency:go-offline -B
 
-# Copiamos el código y compilamos
-COPY src src
+# Copiamos el resto y compilamos
+COPY src ./src
 RUN mvn clean package -DskipTests -B
 
 # 2) Runtime con JRE 17
