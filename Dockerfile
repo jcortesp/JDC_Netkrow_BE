@@ -1,12 +1,12 @@
-# 1) Build con Maven + JDK17
-FROM maven:3.10.1-openjdk-17 AS builder
+# 1) Build con Maven + JDK17 (usamos la imagen oficial maven:3.10.1 que incluye JDK 17)
+FROM maven:3.10.1 AS builder
 WORKDIR /app
 
-# Copiamos pom y wrapper para descargar dependencias offline
+# Copiamos pom, el wrapper y la carpeta .mvn para aprovechar caché y bajar dependencias
 COPY pom.xml mvnw .mvn/ ./
 RUN mvn dependency:go-offline -B
 
-# Copiamos el resto y compilamos
+# Copiamos el resto del código y compilamos
 COPY src ./src
 RUN mvn clean package -DskipTests -B
 
@@ -17,7 +17,7 @@ WORKDIR /app
 # Copiamos el JAR empaquetado desde el builder
 COPY --from=builder /app/target/netkrow-backend-0.0.1-SNAPSHOT.jar app.jar
 
-# Exponemos el puerto que Render asignará vía $PORT
+# Exponemos el puerto que Render le pasará en la variable $PORT
 EXPOSE 8080
 
 # Arrancamos Spring Boot indicando que use $PORT
