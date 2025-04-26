@@ -16,8 +16,8 @@ public class CorsConfig {
                 registry.addMapping("/api/**")
                         .allowedOrigins(
                                 "http://localhost:5173",
-                                "https://netkrow-fe.vercel.app",  // reemplaza con tu dominio Vercel
-                                "https://netkrow.onrender.com"
+                                "https://netkrow-fe.vercel.app",  // tu frontend en Vercel
+                                "https://netkrow.onrender.com"    // tu backend en Render
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowCredentials(true);
