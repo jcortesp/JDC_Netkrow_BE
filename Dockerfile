@@ -17,10 +17,14 @@ COPY src/ src/
 RUN ./mvnw clean package -DskipTests -B
 
 # 2) Runtime con JRE 17
-FROM eclipse-temurin:17-jre-focal AS runtime
-WORKDIR /app
+ FROM eclipse-temurin:17-jre-focal AS runtime
+ WORKDIR /app
 
-COPY --from=builder /app/target/netkrow-backend-0.0.1-SNAPSHOT.jar app.jar
+ # Copiamos el JAR empaquetado desde el builder
+ COPY --from=builder /app/target/netkrow-backend-0.0.1-SNAPSHOT.jar app.jar
 
+# Exponemos el puerto 8080 (fijo)
 EXPOSE 8080
-ENTRYPOINT ["sh","-c","java -Dserver.port=$PORT -jar /app/app.jar"]
+
+# Arrancamos Spring Boot escuchando siempre en el 8080
+ENTRYPOINT ["java","-Dserver.port=8080","-jar","/app/app.jar"]
