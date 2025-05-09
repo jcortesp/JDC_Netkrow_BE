@@ -29,6 +29,7 @@ public class RemissionController {
         private BigDecimal totalValue;
         private BigDecimal depositValue;
         private String depositMethod;
+        // getters y setters...
         public String getRemissionId() { return remissionId; }
         public void setRemissionId(String remissionId) { this.remissionId = remissionId; }
         public BigDecimal getTotalValue() { return totalValue; }
@@ -46,18 +47,19 @@ public class RemissionController {
         public void setMetodoSaldo(String metodoSaldo) { this.metodoSaldo = metodoSaldo; }
     }
 
+    // DTO para “dar de baja”
+    public static class DropRequest {
+        private boolean cobrarRevision;
+        public boolean isCobrarRevision() { return cobrarRevision; }
+        public void setCobrarRevision(boolean cobrarRevision) { this.cobrarRevision = cobrarRevision; }
+    }
+
     // DTO para actualización técnica
     public static class TechnicalRequest {
-        private String equipo;
-        private String marca;
-        private String serial;
-        private String brazalete;
-        private String pilas;
-        private String revision;
-        private String mantenimiento;
-        private String limpieza;
-        private String calibracion;
+        private String equipo, marca, serial, brazalete, pilas;
+        private String revision, mantenimiento, limpieza, calibracion;
         private String notasDiagnostico;
+        // getters y setters...
         public String getEquipo() { return equipo; }
         public void setEquipo(String equipo) { this.equipo = equipo; }
         public String getMarca() { return marca; }
@@ -80,7 +82,7 @@ public class RemissionController {
         public void setNotasDiagnostico(String notasDiagnostico) { this.notasDiagnostico = notasDiagnostico; }
     }
 
-    // 1) Crear nueva remisión, evitando duplicados
+    // 1) Crear nueva remisión
     @PostMapping
     public ResponseEntity<?> createRemission(@RequestBody RemissionRequest req) {
         if (service.getRemissionByRemissionId(req.getRemissionId()).isPresent()) {
@@ -94,7 +96,7 @@ public class RemissionController {
         return ResponseEntity.ok(service.createRemission(r));
     }
 
-    // 2) Registrar entrega de equipo
+    // 2) Entregar equipo
     @PutMapping("/deliver/{remissionId}")
     public ResponseEntity<?> deliverEquipment(
             @PathVariable String remissionId,
@@ -110,11 +112,15 @@ public class RemissionController {
         return ResponseEntity.ok(service.createRemission(r));
     }
 
-    // 3) Dar de baja
+    // 3) Dar de baja (con o sin cobro)
     @PutMapping("/{remissionId}/dar-baja")
-    public ResponseEntity<?> dropRemission(@PathVariable String remissionId) {
+    public ResponseEntity<?> dropRemission(
+            @PathVariable String remissionId,
+            @RequestBody DropRequest req) {
         try {
-            return ResponseEntity.ok(service.dropRemission(remissionId));
+            return ResponseEntity.ok(
+                    service.dropRemission(remissionId, req.isCobrarRevision())
+            );
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
@@ -148,11 +154,9 @@ public class RemissionController {
     @GetMapping("/{remissionId}")
     public ResponseEntity<?> getRemission(@PathVariable String remissionId) {
         Optional<Remission> opt = service.getRemissionByRemissionId(remissionId);
-        if (opt.isPresent()) {
-            return ResponseEntity.ok(opt.get());
-        } else {
-            return ResponseEntity.status(404).body("Remisión no encontrada");
-        }
+        return opt
+                .<ResponseEntity<?>>map(r -> ResponseEntity.ok(r))
+                .orElseGet(() -> ResponseEntity.status(404).body("Remisión no encontrada"));
     }
 
     // 6) Crear garantía

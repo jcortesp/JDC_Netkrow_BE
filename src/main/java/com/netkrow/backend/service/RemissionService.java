@@ -1,3 +1,4 @@
+// src/main/java/com/netkrow/backend/service/RemissionService.java
 package com.netkrow.backend.service;
 
 import com.netkrow.backend.model.Remission;
@@ -77,19 +78,27 @@ public class RemissionService {
     }
 
     /**
-     * Dar de baja: fija total y abono en 50 000, saldo 0,
-     * método de pago saldo "Dado de baja" y fechaSalida ahora.
+     * Dar de baja:
+     *  - si cobrarRevision = true: total=50 000, abono=50 000, metodoSaldo="Dado de baja"
+     *  - si cobrarRevision = false: total=0, abono=0, metodoAbono="Dado de baja", metodoSaldo="Dado de baja"
      */
-    public Remission dropRemission(String remissionId) {
+    public Remission dropRemission(String remissionId, boolean cobrarRevision) {
         Remission r = repo.findByRemissionId(remissionId)
                 .orElseThrow(() -> new RuntimeException("Remisión no encontrada"));
 
-        BigDecimal baja = BigDecimal.valueOf(50000);
-        r.setTotalValue(baja);
-        r.setDepositValue(baja);
+        if (cobrarRevision) {
+            BigDecimal baja = BigDecimal.valueOf(50000);
+            r.setTotalValue(baja);
+            r.setDepositValue(baja);
+        } else {
+            r.setTotalValue(BigDecimal.ZERO);
+            r.setDepositValue(BigDecimal.ZERO);
+            r.setMetodoAbono("Dado de baja");
+        }
+
         r.setMetodoSaldo("Dado de baja");
         r.setFechaSalida(LocalDateTime.now());
-        // el campo saldo se recalcula en @PreUpdate
+        // saldo se recalculará en @PreUpdate
 
         return repo.save(r);
     }
