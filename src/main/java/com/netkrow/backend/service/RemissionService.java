@@ -15,6 +15,10 @@ public class RemissionService {
     private RemissionRepository repo;
 
     public Remission createRemission(Remission r) {
+        // Si es creación (id == null) y ya existe ese remissionId, lanzamos error
+        if (r.getId() == null && repo.findByRemissionId(r.getRemissionId()).isPresent()) {
+            throw new RuntimeException("Ya existe una remisión con ID " + r.getRemissionId());
+        }
         return repo.save(r);
     }
 
@@ -26,10 +30,6 @@ public class RemissionService {
         return repo.findByRemissionId(id);
     }
 
-    /**
-     * Ingresar garantía: crea la remisión “-G” con todos los valores económicos en cero
-     * y ambos métodos de pago fijados a "Garantia".
-     */
     public Remission createGarantia(String remissionId) {
         Remission orig = repo.findByRemissionId(remissionId)
                 .orElseThrow(() -> new RuntimeException("Remisión original no encontrada"));
@@ -42,26 +42,17 @@ public class RemissionService {
         Remission g = new Remission();
         g.setRemissionId(newId);
         g.setCreatedAt(LocalDateTime.now());
-
-        // Valores económicos en cero para la garantía
         g.setTotalValue(BigDecimal.ZERO);
         g.setDepositValue(BigDecimal.ZERO);
         g.setSaldo(BigDecimal.ZERO);
-
-        // Métodos de pago de garantía
         g.setMetodoAbono("Garantia");
         g.setMetodoSaldo("Garantia");
-
-        // Fecha de salida hasta que se cierre la garantía
         g.setFechaSalida(null);
         g.setGarantia(true);
 
         return repo.save(g);
     }
 
-    /**
-     * Cerrar garantía: marca fechaSalida. Los demás valores ya estaban en cero.
-     */
     public Remission closeGarantia(String remissionId) {
         Remission g = repo.findByRemissionId(remissionId)
                 .orElseThrow(() -> new RuntimeException("Garantía no encontrada"));

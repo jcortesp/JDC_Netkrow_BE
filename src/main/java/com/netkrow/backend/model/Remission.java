@@ -12,6 +12,7 @@ public class Remission {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "remission_id", unique = true, nullable = false)
     private String remissionId;
 
     private BigDecimal totalValue;
@@ -114,8 +115,6 @@ public class Remission {
 
     public String getNotasDiagnostico() { return notasDiagnostico; }
     public void setNotasDiagnostico(String notasDiagnostico) { this.notasDiagnostico = notasDiagnostico; }
-
-    // — Getters/setters garantía —
 
     public boolean isGarantia() { return garantia; }
     public void setGarantia(boolean garantia) { this.garantia = garantia; }
