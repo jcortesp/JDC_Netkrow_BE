@@ -80,23 +80,18 @@ public class RemissionController {
         public void setNotasDiagnostico(String notasDiagnostico) { this.notasDiagnostico = notasDiagnostico; }
     }
 
-    // 1) Crear nueva remisión, evitando IDs duplicados
+    // 1) Crear nueva remisión, evitando duplicados
     @PostMapping
     public ResponseEntity<?> createRemission(@RequestBody RemissionRequest req) {
-        // comprobamos duplicado
         if (service.getRemissionByRemissionId(req.getRemissionId()).isPresent()) {
-            return ResponseEntity
-                    .badRequest()
-                    .body("Ya existe una remisión con este ID");
+            return ResponseEntity.badRequest().body("Ya existe una remisión con este ID");
         }
-        // si no, creamos
         Remission r = new Remission();
         r.setRemissionId(req.getRemissionId());
         r.setTotalValue(req.getTotalValue());
         r.setDepositValue(req.getDepositValue());
         r.setMetodoAbono(req.getDepositMethod());
-        Remission saved = service.createRemission(r);
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(service.createRemission(r));
     }
 
     // 2) Registrar entrega de equipo
@@ -107,18 +102,25 @@ public class RemissionController {
 
         Optional<Remission> opt = service.getRemissionByRemissionId(remissionId);
         if (opt.isEmpty()) {
-            return ResponseEntity
-                    .status(404)
-                    .body("Remisión no encontrada");
+            return ResponseEntity.status(404).body("Remisión no encontrada");
         }
         Remission r = opt.get();
         r.setMetodoSaldo(req.getMetodoSaldo());
         r.setFechaSalida(LocalDateTime.now());
-        Remission updated = service.createRemission(r);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(service.createRemission(r));
     }
 
-    // 3) Actualizar datos técnicos
+    // 3) Dar de baja
+    @PutMapping("/{remissionId}/dar-baja")
+    public ResponseEntity<?> dropRemission(@PathVariable String remissionId) {
+        try {
+            return ResponseEntity.ok(service.dropRemission(remissionId));
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    // 4) Actualizar datos técnicos
     @PutMapping("/{remissionId}/technical")
     public ResponseEntity<?> updateTechnical(
             @PathVariable String remissionId,
@@ -126,9 +128,7 @@ public class RemissionController {
 
         Optional<Remission> opt = service.getRemissionByRemissionId(remissionId);
         if (opt.isEmpty()) {
-            return ResponseEntity
-                    .status(404)
-                    .body("Remisión no encontrada");
+            return ResponseEntity.status(404).body("Remisión no encontrada");
         }
         Remission r = opt.get();
         r.setEquipo(req.getEquipo());
@@ -141,45 +141,37 @@ public class RemissionController {
         r.setLimpieza(req.getLimpieza());
         r.setCalibracion(req.getCalibracion());
         r.setNotasDiagnostico(req.getNotasDiagnostico());
-        Remission updated = service.createRemission(r);
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(service.createRemission(r));
     }
 
-    // 4) Obtener remisión por ID
+    // 5) Obtener remisión por ID
     @GetMapping("/{remissionId}")
     public ResponseEntity<?> getRemission(@PathVariable String remissionId) {
         Optional<Remission> opt = service.getRemissionByRemissionId(remissionId);
-        if (opt.isEmpty()) {
-            return ResponseEntity
-                    .status(404)
-                    .body("Remisión no encontrada");
+        if (opt.isPresent()) {
+            return ResponseEntity.ok(opt.get());
+        } else {
+            return ResponseEntity.status(404).body("Remisión no encontrada");
         }
-        return ResponseEntity.ok(opt.get());
     }
 
-    // 5) Crear garantía
+    // 6) Crear garantía
     @PutMapping("/{remissionId}/garantia")
     public ResponseEntity<?> createGarantia(@PathVariable String remissionId) {
         try {
-            Remission g = service.createGarantia(remissionId);
-            return ResponseEntity.ok(g);
+            return ResponseEntity.ok(service.createGarantia(remissionId));
         } catch (RuntimeException e) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    // 6) Cerrar garantía
+    // 7) Cerrar garantía
     @PutMapping("/{remissionId}/garantia/sacar")
     public ResponseEntity<?> closeGarantia(@PathVariable String remissionId) {
         try {
-            Remission g = service.closeGarantia(remissionId);
-            return ResponseEntity.ok(g);
+            return ResponseEntity.ok(service.closeGarantia(remissionId));
         } catch (RuntimeException e) {
-            return ResponseEntity
-                    .badRequest()
-                    .body(e.getMessage());
+            return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 }

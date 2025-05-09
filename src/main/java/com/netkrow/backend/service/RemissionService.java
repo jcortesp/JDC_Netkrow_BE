@@ -14,8 +14,10 @@ public class RemissionService {
     @Autowired
     private RemissionRepository repo;
 
+    /**
+     * Crea una remisión, evitando duplicados por remissionId.
+     */
     public Remission createRemission(Remission r) {
-        // Si es creación (id == null) y ya existe ese remissionId, lanzamos error
         if (r.getId() == null && repo.findByRemissionId(r.getRemissionId()).isPresent()) {
             throw new RuntimeException("Ya existe una remisión con ID " + r.getRemissionId());
         }
@@ -30,6 +32,9 @@ public class RemissionService {
         return repo.findByRemissionId(id);
     }
 
+    /**
+     * Ingresar garantía: crea la remisión “-G”.
+     */
     public Remission createGarantia(String remissionId) {
         Remission orig = repo.findByRemissionId(remissionId)
                 .orElseThrow(() -> new RuntimeException("Remisión original no encontrada"));
@@ -53,6 +58,9 @@ public class RemissionService {
         return repo.save(g);
     }
 
+    /**
+     * Cerrar garantía: establece fechaSalida.
+     */
     public Remission closeGarantia(String remissionId) {
         Remission g = repo.findByRemissionId(remissionId)
                 .orElseThrow(() -> new RuntimeException("Garantía no encontrada"));
@@ -66,5 +74,23 @@ public class RemissionService {
 
         g.setFechaSalida(LocalDateTime.now());
         return repo.save(g);
+    }
+
+    /**
+     * Dar de baja: fija total y abono en 50 000, saldo 0,
+     * método de pago saldo "Dado de baja" y fechaSalida ahora.
+     */
+    public Remission dropRemission(String remissionId) {
+        Remission r = repo.findByRemissionId(remissionId)
+                .orElseThrow(() -> new RuntimeException("Remisión no encontrada"));
+
+        BigDecimal baja = BigDecimal.valueOf(50000);
+        r.setTotalValue(baja);
+        r.setDepositValue(baja);
+        r.setMetodoSaldo("Dado de baja");
+        r.setFechaSalida(LocalDateTime.now());
+        // el campo saldo se recalcula en @PreUpdate
+
+        return repo.save(r);
     }
 }
