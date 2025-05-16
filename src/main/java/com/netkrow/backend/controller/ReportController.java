@@ -39,3 +39,5 @@ public class ReportController {
         return reportService.getDistinctEquipos();
     }
 }
+
+

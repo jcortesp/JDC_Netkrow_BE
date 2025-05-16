@@ -28,7 +28,6 @@ public class ReportService {
             String equipo,
             String estado
     ) {
-        // Siempre agrupamos por fecha (día)
         String sql =
                 "SELECT " +
                         "  DATE(created_at) AS fecha, " +
@@ -38,29 +37,45 @@ public class ReportService {
                         "  SUM(total_value) AS total_valor " +
                         "FROM remissions " +
                         "WHERE created_at BETWEEN :from AND :to " +
-                        "  AND (CAST(:equipo AS varchar) IS NULL OR equipo = CAST(:equipo AS varchar)) " +
-                        "  AND (CAST(:estado AS varchar) IS NULL OR " +
-                        "       (fecha_salida IS NOT NULL AND CAST(:estado AS varchar) = 'Entregado') OR " +
-                        "       (fecha_salida IS NULL     AND CAST(:estado AS varchar) = 'Pendiente')) " +
+                        // CAST(:equipo AS text) en lugar de :equipo::text
+                        "  AND ( CAST(:equipo AS text) IS NULL OR equipo = CAST(:equipo AS text) ) " +
+                        "  AND ( CAST(:estado AS text) IS NULL " +
+                        "     OR (fecha_salida IS NOT NULL AND CAST(:estado AS text) = 'Entregado') " +
+                        "     OR (fecha_salida IS NULL     AND CAST(:estado AS text) = 'Pendiente') ) " +
                         "GROUP BY DATE(created_at), equipo, estado " +
                         "ORDER BY DATE(created_at), equipo, estado";
 
         Query q = em.createNativeQuery(sql);
-        q.setParameter("from", from);
-        q.setParameter("to",   to);
+        q.setParameter("from",   from);
+        q.setParameter("to",     to);
         q.setParameter("equipo", equipo);
         q.setParameter("estado", estado);
 
         @SuppressWarnings("unchecked")
         List<Object[]> rows = q.getResultList();
 
-        return rows.stream().map(r -> new VolumeDto(
-                ((java.sql.Date) r[0]).toLocalDate(),  // fecha
-                (String) r[1],                         // equipo
-                (String) r[2],                         // estado
-                ((Number) r[3]).longValue(),           // totalRemisiones
-                (BigDecimal) r[4]                      // totalValor
-        )).collect(Collectors.toList());
+        return rows.stream().map(r -> {
+            java.sql.Date fechaSql = (java.sql.Date) r[0];
+            String        eq      = (String)       r[1];
+            String        st      = (String)       r[2];
+            long          cnt     = ((Number)      r[3]).longValue();
+
+            Object rawTotal = r[4];
+            BigDecimal totalVal;
+            if (rawTotal instanceof BigDecimal) {
+                totalVal = (BigDecimal) rawTotal;
+            } else {
+                totalVal = BigDecimal.valueOf(((Number) rawTotal).doubleValue());
+            }
+
+            return new VolumeDto(
+                    fechaSql.toLocalDate(),
+                    eq,
+                    st,
+                    cnt,
+                    totalVal
+            );
+        }).collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
