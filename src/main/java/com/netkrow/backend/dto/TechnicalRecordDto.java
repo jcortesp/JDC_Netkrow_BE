@@ -12,3 +12,5 @@ public record TechnicalRecordDto(
         String calibracion,
         String notasDiagnostico
 ) {}
+
+
