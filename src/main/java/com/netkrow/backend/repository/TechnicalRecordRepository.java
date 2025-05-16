@@ -8,3 +8,5 @@ import java.util.List;
 public interface TechnicalRecordRepository extends JpaRepository<TechnicalRecord, Long> {
     List<TechnicalRecord> findByRemission(Remission remission);
 }
+
+
