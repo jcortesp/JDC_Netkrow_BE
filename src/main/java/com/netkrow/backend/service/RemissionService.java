@@ -1,105 +1,117 @@
-// src/main/java/com/netkrow/backend/service/RemissionService.java
 package com.netkrow.backend.service;
 
 import com.netkrow.backend.model.Remission;
 import com.netkrow.backend.repository.RemissionRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class RemissionService {
 
-    @Autowired
-    private RemissionRepository repo;
+    private final RemissionRepository repo;
 
-    /**
-     * Crea una remisión, evitando duplicados por remissionId.
-     */
-    public Remission createRemission(Remission r) {
-        if (r.getId() == null && repo.findByRemissionId(r.getRemissionId()).isPresent()) {
-            throw new RuntimeException("Ya existe una remisión con ID " + r.getRemissionId());
+    public RemissionService(RemissionRepository repo) {
+        this.repo = repo;
+    }
+
+    @Transactional
+    public Remission create(Remission r) {
+        // Validación: que no exista ya la remisión
+        if (repo.findByRemissionId(r.getRemissionId()).isPresent()) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "Remisión ya existe: " + r.getRemissionId()
+            );
         }
         return repo.save(r);
     }
 
-    public Remission save(Remission r) {
+    @Transactional(readOnly = true)
+    public List<Remission> listAll() {
+        return repo.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public Remission findByRemissionId(String id) {
+        return repo.findByRemissionId(id)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Remisión no encontrada: " + id)
+                );
+    }
+
+    @Transactional
+    public Remission deliver(String remissionId, String metodoSaldo) {
+        Remission r = findByRemissionId(remissionId);
+        if (r.getFechaSalida() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ya fue entregada");
+        }
+        r.setFechaSalida(LocalDateTime.now());
+        r.setMetodoSaldo(metodoSaldo);
         return repo.save(r);
     }
 
-    public java.util.Optional<Remission> getRemissionByRemissionId(String id) {
-        return repo.findByRemissionId(id);
-    }
-
     /**
-     * Ingresar garantía: crea la remisión “-G”.
+     * Dar de baja una remisión. Siempre pone metodoSaldo = "Baja",
+     * y ajusta totalValue/depositValue/saldo según cobraRevision.
      */
-    public Remission createGarantia(String remissionId) {
-        Remission orig = repo.findByRemissionId(remissionId)
-                .orElseThrow(() -> new RuntimeException("Remisión original no encontrada"));
-
-        String newId = remissionId + "-G";
-        if (repo.findByRemissionId(newId).isPresent()) {
-            throw new RuntimeException("Ya existe garantía para esta remisión");
+    @Transactional
+    public Remission drop(String remissionId, boolean cobrarRevision, Double revisionValue) {
+        Remission r = findByRemissionId(remissionId);
+        if (r.getFechaSalida() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La remisión ya fue dada de baja o entregada");
         }
-
-        Remission g = new Remission();
-        g.setRemissionId(newId);
-        g.setCreatedAt(LocalDateTime.now());
-        g.setTotalValue(BigDecimal.ZERO);
-        g.setDepositValue(BigDecimal.ZERO);
-        g.setSaldo(BigDecimal.ZERO);
-        g.setMetodoAbono("Garantia");
-        g.setMetodoSaldo("Garantia");
-        g.setFechaSalida(null);
-        g.setGarantia(true);
-
-        return repo.save(g);
-    }
-
-    /**
-     * Cerrar garantía: establece fechaSalida.
-     */
-    public Remission closeGarantia(String remissionId) {
-        Remission g = repo.findByRemissionId(remissionId)
-                .orElseThrow(() -> new RuntimeException("Garantía no encontrada"));
-
-        if (!Boolean.TRUE.equals(g.isGarantia())) {
-            throw new RuntimeException("No es una remisión de garantía");
-        }
-        if (g.getFechaSalida() != null) {
-            throw new RuntimeException("La garantía ya está cerrada");
-        }
-
-        g.setFechaSalida(LocalDateTime.now());
-        return repo.save(g);
-    }
-
-    /**
-     * Dar de baja:
-     *  - si cobrarRevision = true: total=50 000, abono=50 000, metodoSaldo="Dado de baja"
-     *  - si cobrarRevision = false: total=0, abono=0, metodoAbono="Dado de baja", metodoSaldo="Dado de baja"
-     */
-    public Remission dropRemission(String remissionId, boolean cobrarRevision) {
-        Remission r = repo.findByRemissionId(remissionId)
-                .orElseThrow(() -> new RuntimeException("Remisión no encontrada"));
+        r.setFechaSalida(LocalDateTime.now());
+        r.setMetodoSaldo("Baja");
 
         if (cobrarRevision) {
-            BigDecimal baja = BigDecimal.valueOf(50000);
-            r.setTotalValue(baja);
-            r.setDepositValue(baja);
+            if (revisionValue == null || revisionValue < 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Valor de revisión inválido");
+            }
+            r.setTotalValue(revisionValue);
+            r.setDepositValue(revisionValue);
+            // saldo = total - deposit = 0
         } else {
-            r.setTotalValue(BigDecimal.ZERO);
-            r.setDepositValue(BigDecimal.ZERO);
-            r.setMetodoAbono("Dado de baja");
+            r.setTotalValue(0.0);
+            r.setDepositValue(0.0);
+            r.setMetodoAbono("Baja");
+            // saldo = 0
         }
 
-        r.setMetodoSaldo("Dado de baja");
-        r.setFechaSalida(LocalDateTime.now());
-        // saldo se recalculará en @PreUpdate
-
         return repo.save(r);
+    }
+
+    @Transactional
+    public Remission createGarantia(String remissionId) {
+        Remission orig = findByRemissionId(remissionId);
+        String garantiaId = remissionId + "-G";
+        if (repo.findByRemissionId(garantiaId).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ya existe garantía para esta remisión");
+        }
+        Remission g = new Remission();
+        g.setRemissionId(garantiaId);
+        g.setTotalValue(0.0);
+        g.setDepositValue(0.0);
+        g.setMetodoAbono("Garantía");
+        g.setMetodoSaldo("Garantía");
+        g.setGarantia(true);
+        return repo.save(g);
+    }
+
+    @Transactional
+    public Remission closeGarantia(String garantiaId) {
+        Remission g = findByRemissionId(garantiaId);
+        if (!g.isGarantia()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No es una remisión de garantía");
+        }
+        if (g.getFechaSalida() != null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La garantía ya está cerrada");
+        }
+        g.setFechaSalida(LocalDateTime.now());
+        return repo.save(g);
     }
 }

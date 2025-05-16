@@ -1,181 +1,81 @@
-// src/main/java/com/netkrow/backend/controller/RemissionController.java
 package com.netkrow.backend.controller;
 
 import com.netkrow.backend.model.Remission;
 import com.netkrow.backend.service.RemissionService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.Optional;
+import java.util.List;
 
-@CrossOrigin(origins = {
-        "http://localhost:5173",
-        "https://netkrow-fe.vercel.app",
-        "https://netkrow.onrender.com"
-})
 @RestController
 @RequestMapping("/api/remissions")
 public class RemissionController {
 
-    @Autowired
-    private RemissionService service;
+    private final RemissionService service;
 
-    // DTO para creación de remisión
-    public static class RemissionRequest {
-        private String remissionId;
-        private BigDecimal totalValue;
-        private BigDecimal depositValue;
-        private String depositMethod;
-        // getters y setters...
-        public String getRemissionId() { return remissionId; }
-        public void setRemissionId(String remissionId) { this.remissionId = remissionId; }
-        public BigDecimal getTotalValue() { return totalValue; }
-        public void setTotalValue(BigDecimal totalValue) { this.totalValue = totalValue; }
-        public BigDecimal getDepositValue() { return depositValue; }
-        public void setDepositValue(BigDecimal depositValue) { this.depositValue = depositValue; }
-        public String getDepositMethod() { return depositMethod; }
-        public void setDepositMethod(String depositMethod) { this.depositMethod = depositMethod; }
+    public RemissionController(RemissionService service) {
+        this.service = service;
     }
 
-    // DTO para entrega de equipo
+    // DTO para entrega normal
     public static class DeliveryRequest {
         private String metodoSaldo;
         public String getMetodoSaldo() { return metodoSaldo; }
         public void setMetodoSaldo(String metodoSaldo) { this.metodoSaldo = metodoSaldo; }
     }
 
-    // DTO para “dar de baja”
+    // DTO para dar de baja
     public static class DropRequest {
         private boolean cobrarRevision;
+        private Double revisionValue;
         public boolean isCobrarRevision() { return cobrarRevision; }
         public void setCobrarRevision(boolean cobrarRevision) { this.cobrarRevision = cobrarRevision; }
+        public Double getRevisionValue() { return revisionValue; }
+        public void setRevisionValue(Double revisionValue) { this.revisionValue = revisionValue; }
     }
 
-    // DTO para actualización técnica
-    public static class TechnicalRequest {
-        private String equipo, marca, serial, brazalete, pilas;
-        private String revision, mantenimiento, limpieza, calibracion;
-        private String notasDiagnostico;
-        // getters y setters...
-        public String getEquipo() { return equipo; }
-        public void setEquipo(String equipo) { this.equipo = equipo; }
-        public String getMarca() { return marca; }
-        public void setMarca(String marca) { this.marca = marca; }
-        public String getSerial() { return serial; }
-        public void setSerial(String serial) { this.serial = serial; }
-        public String getBrazalete() { return brazalete; }
-        public void setBrazalete(String brazalete) { this.brazalete = brazalete; }
-        public String getPilas() { return pilas; }
-        public void setPilas(String pilas) { this.pilas = pilas; }
-        public String getRevision() { return revision; }
-        public void setRevision(String revision) { this.revision = revision; }
-        public String getMantenimiento() { return mantenimiento; }
-        public void setMantenimiento(String mantenimiento) { this.mantenimiento = mantenimiento; }
-        public String getLimpieza() { return limpieza; }
-        public void setLimpieza(String limpieza) { this.limpieza = limpieza; }
-        public String getCalibracion() { return calibracion; }
-        public void setCalibracion(String calibracion) { this.calibracion = calibracion; }
-        public String getNotasDiagnostico() { return notasDiagnostico; }
-        public void setNotasDiagnostico(String notasDiagnostico) { this.notasDiagnostico = notasDiagnostico; }
-    }
-
-    // 1) Crear nueva remisión
     @PostMapping
-    public ResponseEntity<?> createRemission(@RequestBody RemissionRequest req) {
-        if (service.getRemissionByRemissionId(req.getRemissionId()).isPresent()) {
-            return ResponseEntity.badRequest().body("Ya existe una remisión con este ID");
-        }
-        Remission r = new Remission();
-        r.setRemissionId(req.getRemissionId());
-        r.setTotalValue(req.getTotalValue());
-        r.setDepositValue(req.getDepositValue());
-        r.setMetodoAbono(req.getDepositMethod());
-        return ResponseEntity.ok(service.createRemission(r));
+    public ResponseEntity<Remission> create(@RequestBody Remission r) {
+        return ResponseEntity.ok(service.create(r));
     }
 
-    // 2) Entregar equipo
-    @PutMapping("/deliver/{remissionId}")
-    public ResponseEntity<?> deliverEquipment(
-            @PathVariable String remissionId,
-            @RequestBody DeliveryRequest req) {
-
-        Optional<Remission> opt = service.getRemissionByRemissionId(remissionId);
-        if (opt.isEmpty()) {
-            return ResponseEntity.status(404).body("Remisión no encontrada");
-        }
-        Remission r = opt.get();
-        r.setMetodoSaldo(req.getMetodoSaldo());
-        r.setFechaSalida(LocalDateTime.now());
-        return ResponseEntity.ok(service.createRemission(r));
+    @GetMapping
+    public ResponseEntity<List<Remission>> list() {
+        return ResponseEntity.ok(service.listAll());
     }
 
-    // 3) Dar de baja (con o sin cobro)
-    @PutMapping("/{remissionId}/dar-baja")
-    public ResponseEntity<?> dropRemission(
-            @PathVariable String remissionId,
-            @RequestBody DropRequest req) {
-        try {
-            return ResponseEntity.ok(
-                    service.dropRemission(remissionId, req.isCobrarRevision())
-            );
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
-    }
-
-    // 4) Actualizar datos técnicos
-    @PutMapping("/{remissionId}/technical")
-    public ResponseEntity<?> updateTechnical(
-            @PathVariable String remissionId,
-            @RequestBody TechnicalRequest req) {
-
-        Optional<Remission> opt = service.getRemissionByRemissionId(remissionId);
-        if (opt.isEmpty()) {
-            return ResponseEntity.status(404).body("Remisión no encontrada");
-        }
-        Remission r = opt.get();
-        r.setEquipo(req.getEquipo());
-        r.setMarca(req.getMarca());
-        r.setSerial(req.getSerial());
-        r.setBrazalete(req.getBrazalete());
-        r.setPilas(req.getPilas());
-        r.setRevision(req.getRevision());
-        r.setMantenimiento(req.getMantenimiento());
-        r.setLimpieza(req.getLimpieza());
-        r.setCalibracion(req.getCalibracion());
-        r.setNotasDiagnostico(req.getNotasDiagnostico());
-        return ResponseEntity.ok(service.createRemission(r));
-    }
-
-    // 5) Obtener remisión por ID
     @GetMapping("/{remissionId}")
-    public ResponseEntity<?> getRemission(@PathVariable String remissionId) {
-        Optional<Remission> opt = service.getRemissionByRemissionId(remissionId);
-        return opt
-                .<ResponseEntity<?>>map(r -> ResponseEntity.ok(r))
-                .orElseGet(() -> ResponseEntity.status(404).body("Remisión no encontrada"));
+    public ResponseEntity<Remission> getOne(@PathVariable String remissionId) {
+        return ResponseEntity.ok(service.findByRemissionId(remissionId));
     }
 
-    // 6) Crear garantía
+    @PutMapping("/deliver/{remissionId}")
+    public ResponseEntity<Remission> deliver(
+            @PathVariable String remissionId,
+            @RequestBody DeliveryRequest req
+    ) {
+        return ResponseEntity.ok(
+                service.deliver(remissionId, req.getMetodoSaldo())
+        );
+    }
+
+    @PutMapping("/{remissionId}/dar-baja")
+    public ResponseEntity<Remission> dropRemission(
+            @PathVariable String remissionId,
+            @RequestBody DropRequest req
+    ) {
+        return ResponseEntity.ok(
+                service.drop(remissionId, req.isCobrarRevision(), req.getRevisionValue())
+        );
+    }
+
     @PutMapping("/{remissionId}/garantia")
-    public ResponseEntity<?> createGarantia(@PathVariable String remissionId) {
-        try {
-            return ResponseEntity.ok(service.createGarantia(remissionId));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<Remission> createGarantia(@PathVariable String remissionId) {
+        return ResponseEntity.ok(service.createGarantia(remissionId));
     }
 
-    // 7) Cerrar garantía
     @PutMapping("/{remissionId}/garantia/sacar")
-    public ResponseEntity<?> closeGarantia(@PathVariable String remissionId) {
-        try {
-            return ResponseEntity.ok(service.closeGarantia(remissionId));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(e.getMessage());
-        }
+    public ResponseEntity<Remission> closeGarantia(@PathVariable String remissionId) {
+        return ResponseEntity.ok(service.closeGarantia(remissionId));
     }
 }
