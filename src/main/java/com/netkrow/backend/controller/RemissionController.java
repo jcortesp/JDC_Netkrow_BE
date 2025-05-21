@@ -5,6 +5,7 @@ import com.netkrow.backend.service.RemissionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.net.URI;
 import java.util.List;
 
 @RestController
@@ -36,7 +37,10 @@ public class RemissionController {
 
     @PostMapping
     public ResponseEntity<Remission> create(@RequestBody Remission r) {
-        return ResponseEntity.ok(service.create(r));
+        Remission created = service.create(r);
+        return ResponseEntity
+                .created(URI.create("/api/remissions/" + created.getRemissionId()))
+                .body(created);
     }
 
     @GetMapping
