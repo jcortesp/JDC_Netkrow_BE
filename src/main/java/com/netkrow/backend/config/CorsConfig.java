@@ -19,7 +19,8 @@ public class CorsConfig {
                                 "http://localhost:5173",
                                 "https://netkrow-fe.vercel.app",
                                 "https://netkrow.onrender.com",
-                                "https://netkrow-fcqlwzv5a-juan-daniel-cortes-projects.vercel.app"
+                                "https://netkrow-fcqlwzv5a-juan-daniel-cortes-projects.vercel.app",
+                                 "https://*.vercel.app"
                         )
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowCredentials(true);
