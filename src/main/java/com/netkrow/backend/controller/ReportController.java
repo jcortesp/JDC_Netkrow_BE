@@ -1,13 +1,9 @@
-// src/main/java/com/netkrow/backend/controller/ReportController.java
 package com.netkrow.backend.controller;
 
 import com.netkrow.backend.dto.VolumeDto;
 import com.netkrow.backend.service.ReportService;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,15 +24,15 @@ public class ReportController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-            @RequestParam(required = false) String equipo,
-            @RequestParam(required = false) String estado
+            @RequestParam(required = false) String estado,
+            @RequestParam(required = false) String equipo // aceptado pero ignorado
     ) {
-        return reportService.getVolumeReport(from, to, equipo, estado);
+        return reportService.getVolumeReport(from, to, null, estado);
     }
 
     @GetMapping("/equipos")
     public List<String> getEquipos() {
+        // Sin columna 'equipo' en remissions, devolvemos vacío.
         return reportService.getDistinctEquipos();
     }
 }
-

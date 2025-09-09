@@ -1,4 +1,3 @@
-// src/main/java/com/netkrow/backend/service/ReportService.java
 package com.netkrow.backend.service;
 
 import com.netkrow.backend.dto.VolumeDto;
@@ -25,52 +24,57 @@ public class ReportService {
     public List<VolumeDto> getVolumeReport(
             LocalDateTime from,
             LocalDateTime to,
-            String equipo,
-            String estado
+            String equipo,   // ignorado (no existe en la tabla)
+            String estado    // "Entregado" | "Pendiente" | null/blank
     ) {
-        String sql =
-                "SELECT " +
-                        "  DATE(created_at) AS fecha, " +
-                        "  equipo, " +
-                        "  CASE WHEN fecha_salida IS NOT NULL THEN 'Entregado' ELSE 'Pendiente' END AS estado, " +
-                        "  COUNT(*) AS total_remisiones, " +
-                        "  SUM(total_value) AS total_valor " +
-                        "FROM remissions " +
-                        "WHERE created_at BETWEEN :from AND :to " +
-                        // CAST(:equipo AS text) en lugar de :equipo::text
-                        "  AND ( CAST(:equipo AS text) IS NULL OR equipo = CAST(:equipo AS text) ) " +
-                        "  AND ( CAST(:estado AS text) IS NULL " +
-                        "     OR (fecha_salida IS NOT NULL AND CAST(:estado AS text) = 'Entregado') " +
-                        "     OR (fecha_salida IS NULL     AND CAST(:estado AS text) = 'Pendiente') ) " +
-                        "GROUP BY DATE(created_at), equipo, estado " +
-                        "ORDER BY DATE(created_at), equipo, estado";
+        // Base: agrupamos por fecha y estado (sin "equipo" porque no está en la tabla)
+        StringBuilder sql = new StringBuilder()
+            .append("SELECT ")
+            .append("  DATE(created_at) AS fecha, ")
+            .append("  CASE WHEN fecha_salida IS NOT NULL THEN 'Entregado' ELSE 'Pendiente' END AS estado, ")
+            .append("  COUNT(*) AS total_remisiones, ")
+            .append("  SUM(COALESCE(total_value,0)) AS total_valor ")
+            .append("FROM remissions ")
+            .append("WHERE created_at BETWEEN :from AND :to ");
 
-        Query q = em.createNativeQuery(sql);
-        q.setParameter("from",   from);
-        q.setParameter("to",     to);
-        q.setParameter("equipo", equipo);
-        q.setParameter("estado", estado);
+        // Si 'estado' viene informado, aplicamos el filtro; si no, no añadimos nada
+        boolean filterEstado = estado != null && !estado.isBlank();
+        if (filterEstado) {
+            sql.append("AND (")
+               .append("     (fecha_salida IS NOT NULL AND :estado = 'Entregado') ")
+               .append("  OR (fecha_salida IS NULL     AND :estado = 'Pendiente')")
+               .append(") ");
+        }
+
+        sql.append("GROUP BY DATE(created_at), estado ")
+           .append("ORDER BY DATE(created_at), estado");
+
+        Query q = em.createNativeQuery(sql.toString());
+        q.setParameter("from", from);
+        q.setParameter("to", to);
+        if (filterEstado) {
+            // Solo seteamos el parámetro si lo usamos en el SQL (evita 42P18)
+            q.setParameter("estado", estado);
+        }
 
         @SuppressWarnings("unchecked")
         List<Object[]> rows = q.getResultList();
 
+        // VolumeDto = (fecha, equipo, estado, totalRemisiones, totalValor)
+        // 'equipo' queda vacío porque no existe en la tabla
         return rows.stream().map(r -> {
             java.sql.Date fechaSql = (java.sql.Date) r[0];
-            String        eq      = (String)       r[1];
-            String        st      = (String)       r[2];
-            long          cnt     = ((Number)      r[3]).longValue();
+            String st = (String) r[1];
+            long cnt = ((Number) r[2]).longValue();
 
-            Object rawTotal = r[4];
-            BigDecimal totalVal;
-            if (rawTotal instanceof BigDecimal) {
-                totalVal = (BigDecimal) rawTotal;
-            } else {
-                totalVal = BigDecimal.valueOf(((Number) rawTotal).doubleValue());
-            }
+            Object rawTotal = r[3];
+            BigDecimal totalVal = (rawTotal instanceof BigDecimal)
+                    ? (BigDecimal) rawTotal
+                    : BigDecimal.valueOf(((Number) rawTotal).doubleValue());
 
             return new VolumeDto(
                     fechaSql.toLocalDate(),
-                    eq,
+                    "",          // equipo vacío
                     st,
                     cnt,
                     totalVal
@@ -80,10 +84,7 @@ public class ReportService {
 
     @Transactional(readOnly = true)
     public List<String> getDistinctEquipos() {
-        @SuppressWarnings("unchecked")
-        List<String> equipos = em.createNativeQuery(
-                "SELECT DISTINCT equipo FROM remissions WHERE equipo IS NOT NULL ORDER BY equipo"
-        ).getResultList();
-        return equipos;
+        // No hay columna 'equipo' en remissions: devolvemos vacío
+        return List.of();
     }
 }

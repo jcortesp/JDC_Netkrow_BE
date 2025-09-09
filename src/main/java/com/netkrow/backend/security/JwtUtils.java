@@ -2,6 +2,7 @@ package com.netkrow.backend.security;
 
 import io.jsonwebtoken.*;
 import io.jsonwebtoken.security.Keys;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.security.Key;
@@ -12,9 +13,11 @@ import com.netkrow.backend.model.User;
 @Component
 public class JwtUtils {
 
-    // Usa una clave alfanumérica de buen largo; en producción, mantenla en variables de entorno
-    private final String jwtSecret = "TuSecretoMuyLargoYSeguroParaFirmarElJWT_123456";
-    private final long jwtExpirationMs = 86400000; // 24 horas
+    @Value("${jwt.secret:TuSecretoMuyLargoYSeguroParaFirmarElJWT_123456}")
+    private String jwtSecret;
+
+    @Value("${jwt.expiration.ms:86400000}")
+    private long jwtExpirationMs;
 
     private Key getSigningKey() {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
@@ -22,8 +25,8 @@ public class JwtUtils {
 
     public String generateToken(User user) {
         return Jwts.builder()
-                .claim("id", user.getId())             // <-- Aquí va el ID
-                .setSubject(user.getEmail())           // Subjet = email
+                .claim("id", user.getId())           // el FE ya lee "id" del token
+                .setSubject(user.getEmail())         // subject = email
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + jwtExpirationMs))
                 .signWith(getSigningKey(), SignatureAlgorithm.HS256)
@@ -47,8 +50,7 @@ public class JwtUtils {
                     .parseClaimsJws(token);
             return true;
         } catch (JwtException e) {
-            // Token inválido
+            return false;
         }
-        return false;
     }
 }

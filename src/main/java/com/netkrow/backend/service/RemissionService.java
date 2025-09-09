@@ -7,8 +7,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class RemissionService {
@@ -19,9 +23,44 @@ public class RemissionService {
         this.repo = repo;
     }
 
+    // --- Idempotencia en memoria (TTL 10 min) ---
+    private static final Duration IDEM_TTL = Duration.ofMinutes(10);
+    private static final Map<String, CacheEntry> IDEM_CACHE = new ConcurrentHashMap<>();
+
+    private static class CacheEntry {
+        final Remission remission;
+        final LocalDateTime createdAt;
+        CacheEntry(Remission r) {
+            this.remission = r;
+            this.createdAt = LocalDateTime.now();
+        }
+        boolean expired() {
+            return createdAt.plus(IDEM_TTL).isBefore(LocalDateTime.now());
+        }
+    }
+
+    private static void cachePut(String key, Remission r) {
+        if (key == null || key.isBlank() || r == null) return;
+        IDEM_CACHE.put(key, new CacheEntry(r));
+        // Limpieza oportunista
+        IDEM_CACHE.entrySet().removeIf(e -> e.getValue().expired());
+    }
+
+    private static Optional<Remission> cacheGet(String key) {
+        if (key == null || key.isBlank()) return Optional.empty();
+        CacheEntry ce = IDEM_CACHE.get(key);
+        if (ce == null) return Optional.empty();
+        if (ce.expired()) {
+            IDEM_CACHE.remove(key);
+            return Optional.empty();
+        }
+        return Optional.of(ce.remission);
+    }
+
+    // --- Lógica existente + idempotencia ---
+
     @Transactional
     public Remission create(Remission r) {
-        // Validación: que no exista ya la remisión
         if (repo.findByRemissionId(r.getRemissionId()).isPresent()) {
             throw new ResponseStatusException(
                     HttpStatus.CONFLICT,
@@ -29,6 +68,32 @@ public class RemissionService {
             );
         }
         return repo.save(r);
+    }
+
+    /**
+     * Crea con idempotencia: si llega la misma petición con el mismo header
+     * Idempotency-Key, devuelve la misma remisión sin duplicar en DB.
+     */
+    @Transactional
+    public Remission createWithIdempotency(Remission r, String idemKey) {
+        // 1) ¿Ya tengo cache por esa key?
+        Optional<Remission> cached = cacheGet(idemKey);
+        if (cached.isPresent()) {
+            return cached.get();
+        }
+
+        // 2) ¿Ya existe la remisión por ID (simultaneidad o repetición)?
+        Optional<Remission> existing = repo.findByRemissionId(r.getRemissionId());
+        if (existing.isPresent()) {
+            Remission ex = existing.get();
+            cachePut(idemKey, ex);
+            return ex;
+        }
+
+        // 3) Crear y cachear
+        Remission created = repo.save(r);
+        cachePut(idemKey, created);
+        return created;
     }
 
     @Transactional(readOnly = true)
@@ -51,6 +116,17 @@ public class RemissionService {
         if (r.getFechaSalida() != null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ya fue entregada");
         }
+
+        // saldo = totalValue - depositValue (sin alterar schema)
+        double total = r.getTotalValue() == null ? 0.0 : r.getTotalValue();
+        double abono = r.getDepositValue() == null ? 0.0 : r.getDepositValue();
+        double saldo = total - abono;
+
+        if (saldo > 0.00001 && (metodoSaldo == null || metodoSaldo.isBlank())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Debe seleccionar método de pago para el saldo pendiente.");
+        }
+
         r.setFechaSalida(LocalDateTime.now());
         r.setMetodoSaldo(metodoSaldo);
         return repo.save(r);
@@ -84,7 +160,6 @@ public class RemissionService {
 
     @Transactional
     public Remission createGarantia(String remissionId) {
-        // valida existencia de la remisión original
         findByRemissionId(remissionId);
         String garantiaId = remissionId + "-G";
         if (repo.findByRemissionId(garantiaId).isPresent()) {
