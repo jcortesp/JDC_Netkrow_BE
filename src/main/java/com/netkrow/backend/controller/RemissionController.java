@@ -36,11 +36,14 @@ public class RemissionController {
     }
 
     @PostMapping
-    public ResponseEntity<Remission> create(@RequestBody Remission r) {
-        Remission created = service.create(r);
-        return ResponseEntity
-                .created(URI.create("/api/remissions/" + created.getRemissionId()))
-                .body(created);
+    public ResponseEntity<Remission> create(
+            @RequestBody Remission r,
+            @RequestHeader(value = "Idempotency-Key", required = false) String idemKey
+    ) {
+        Remission created = service.createWithIdempotency(r, idemKey);
+        // Para idempotencia, devolvemos 200 OK siempre con el body de la remisión
+        // (si quieres mantener 201 en la primera vez, necesitaríamos propagar un flag desde service)
+        return ResponseEntity.ok(created);
     }
 
     @GetMapping
