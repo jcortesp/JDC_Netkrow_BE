@@ -12,45 +12,64 @@ public class TechnicalRecord {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // 1) Se generará al insertar, nunca nulo
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    // 2) Relación con Remission: la FK remission_id NO PUEDE ser null
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "remission_id", nullable = false)
     private Remission remission;
 
-    // Campos técnicos
     @Column(nullable = false)
     private String equipo;
+
     @Column
     private String marca;
+
     @Column
     private String serial;
+
     @Column
     private String brazalete;
+
     @Column
     private String pilas;
+
     @Column
     private String revision;
+
     @Column
     private String mantenimiento;
+
     @Column
     private String limpieza;
+
     @Column
     private String calibracion;
+
     @Column(name = "notas_diagnostico", length = 100)
     private String notasDiagnostico;
 
-    // ─────────────────────────────────────────────────────────────────────────────
-    // Getters & setters (puedes generar con tu IDE)
+    // ===== Campos monetarios / baja por equipo =====
+    @Column(name = "valor", nullable = false)
+    private Double valor = 0.0;
+
+    @Column(name = "dado_baja", nullable = false)
+    private Boolean dadoBaja = false;
+
+    @Column(name = "fecha_baja")
+    private LocalDateTime fechaBaja;
+
+    @Column(name = "revision_valor")
+    private Double revisionValor; // null si no se cobró revisión
+
+    // Getters & Setters
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
+
     public Remission getRemission() { return remission; }
     public void setRemission(Remission remission) { this.remission = remission; }
 
@@ -83,4 +102,16 @@ public class TechnicalRecord {
 
     public String getNotasDiagnostico() { return notasDiagnostico; }
     public void setNotasDiagnostico(String notasDiagnostico) { this.notasDiagnostico = notasDiagnostico; }
+
+    public Double getValor() { return valor; }
+    public void setValor(Double valor) { this.valor = valor; }
+
+    public Boolean getDadoBaja() { return dadoBaja; }
+    public void setDadoBaja(Boolean dadoBaja) { this.dadoBaja = dadoBaja; }
+
+    public LocalDateTime getFechaBaja() { return fechaBaja; }
+    public void setFechaBaja(LocalDateTime fechaBaja) { this.fechaBaja = fechaBaja; }
+
+    public Double getRevisionValor() { return revisionValor; }
+    public void setRevisionValor(Double revisionValor) { this.revisionValor = revisionValor; }
 }

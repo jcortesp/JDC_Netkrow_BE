@@ -5,7 +5,6 @@ import com.netkrow.backend.service.RemissionService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.net.URI;
 import java.util.List;
 
 @RestController
@@ -41,8 +40,6 @@ public class RemissionController {
             @RequestHeader(value = "Idempotency-Key", required = false) String idemKey
     ) {
         Remission created = service.createWithIdempotency(r, idemKey);
-        // Para idempotencia, devolvemos 200 OK siempre con el body de la remisión
-        // (si quieres mantener 201 en la primera vez, necesitaríamos propagar un flag desde service)
         return ResponseEntity.ok(created);
     }
 

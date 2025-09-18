@@ -76,13 +76,11 @@ public class RemissionService {
      */
     @Transactional
     public Remission createWithIdempotency(Remission r, String idemKey) {
-        // 1) ¿Ya tengo cache por esa key?
         Optional<Remission> cached = cacheGet(idemKey);
         if (cached.isPresent()) {
             return cached.get();
         }
 
-        // 2) ¿Ya existe la remisión por ID (simultaneidad o repetición)?
         Optional<Remission> existing = repo.findByRemissionId(r.getRemissionId());
         if (existing.isPresent()) {
             Remission ex = existing.get();
@@ -90,7 +88,6 @@ public class RemissionService {
             return ex;
         }
 
-        // 3) Crear y cachear
         Remission created = repo.save(r);
         cachePut(idemKey, created);
         return created;
@@ -117,7 +114,7 @@ public class RemissionService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ya fue entregada");
         }
 
-        // saldo = totalValue - depositValue (sin alterar schema)
+        // saldo = totalValue - depositValue
         double total = r.getTotalValue() == null ? 0.0 : r.getTotalValue();
         double abono = r.getDepositValue() == null ? 0.0 : r.getDepositValue();
         double saldo = total - abono;

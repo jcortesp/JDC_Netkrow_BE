@@ -17,6 +17,15 @@ public class TechnicalRecordController {
         this.service = service;
     }
 
+    public static class DropRecordRequest {
+        private boolean cobrarRevision;
+        private Double revisionValue;
+        public boolean isCobrarRevision() { return cobrarRevision; }
+        public void setCobrarRevision(boolean cobrarRevision) { this.cobrarRevision = cobrarRevision; }
+        public Double getRevisionValue() { return revisionValue; }
+        public void setRevisionValue(Double revisionValue) { this.revisionValue = revisionValue; }
+    }
+
     @GetMapping
     public ResponseEntity<List<TechnicalRecord>> list(@PathVariable String remissionId) {
         return ResponseEntity.ok(service.listByRemissionCode(remissionId));
@@ -27,8 +36,7 @@ public class TechnicalRecordController {
             @PathVariable String remissionId,
             @RequestBody TechnicalRecord record
     ) {
-        TechnicalRecord saved = service.create(remissionId, record);
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(service.create(remissionId, record));
     }
 
     @PutMapping("/{recordId}")
@@ -37,7 +45,21 @@ public class TechnicalRecordController {
             @PathVariable Long recordId,
             @RequestBody TechnicalRecord record
     ) {
-        TechnicalRecord updated = service.update(remissionId, recordId, record);
+        return ResponseEntity.ok(service.update(remissionId, recordId, record));
+    }
+
+    @PutMapping("/{recordId}/drop")
+    public ResponseEntity<TechnicalRecord> dropRecord(
+            @PathVariable String remissionId,
+            @PathVariable Long recordId,
+            @RequestBody DropRecordRequest req
+    ) {
+        TechnicalRecord updated = service.dropRecord(
+                remissionId,
+                recordId,
+                req.isCobrarRevision(),
+                req.getRevisionValue()
+        );
         return ResponseEntity.ok(updated);
     }
 }
