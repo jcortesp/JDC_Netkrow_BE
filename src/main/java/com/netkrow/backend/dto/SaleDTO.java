@@ -1,25 +1,27 @@
 package com.netkrow.backend.dto;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 public class SaleDTO {
     private Long saleId;
-    private LocalDate saleDate;       // YYYY-MM-DD
+    private LocalDateTime saleDate;   // ahora con hora
     private String remisionVenta;
     private String transactionType;
-    private Long productId;           // dropdown products
+    private Long productId;
     private String channel;
     private Integer unitQty;
     private BigDecimal saleValue;
     private String paymentMethod;
 
-    // Getters y setters
+    private Long customerId;
+    private String customerName;
+
     public Long getSaleId() { return saleId; }
     public void setSaleId(Long saleId) { this.saleId = saleId; }
 
-    public LocalDate getSaleDate() { return saleDate; }
-    public void setSaleDate(LocalDate saleDate) { this.saleDate = saleDate; }
+    public LocalDateTime getSaleDate() { return saleDate; }
+    public void setSaleDate(LocalDateTime saleDate) { this.saleDate = saleDate; }
 
     public String getRemisionVenta() { return remisionVenta; }
     public void setRemisionVenta(String remisionVenta) { this.remisionVenta = remisionVenta; }
@@ -41,4 +43,10 @@ public class SaleDTO {
 
     public String getPaymentMethod() { return paymentMethod; }
     public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+
+    public Long getCustomerId() { return customerId; }
+    public void setCustomerId(Long customerId) { this.customerId = customerId; }
+
+    public String getCustomerName() { return customerName; }
+    public void setCustomerName(String customerName) { this.customerName = customerName; }
 }

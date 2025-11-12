@@ -24,14 +24,24 @@ public class CorsConfig {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
                 registry.addMapping("/api/**")
-                        // Usamos patterns para permitir comodines (*.vercel.app)
                         .allowedOriginPatterns(
                                 frontendUrl,
                                 frontendProdUrl,
                                 frontendExtraUrl,
                                 "https://*.vercel.app"
                         )
-                        .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                        .allowedMethods("GET","POST","PUT","DELETE","OPTIONS")
+                        // ✅ añadimos el header de idempotencia y algunos comunes
+                        .allowedHeaders(
+                                "Authorization",
+                                "Content-Type",
+                                "Accept",
+                                "Idempotency-Key",
+                                "idempotency-key",
+                                "X-Requested-With"
+                        )
+                        // (opcional) para leerlos desde el FE si alguna vez los necesitas
+                        .exposedHeaders("Authorization", "Location", "Idempotency-Key")
                         .allowCredentials(true);
             }
         };

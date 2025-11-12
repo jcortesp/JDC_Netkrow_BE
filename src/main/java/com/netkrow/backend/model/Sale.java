@@ -2,7 +2,6 @@ package com.netkrow.backend.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -10,7 +9,8 @@ import java.time.LocalDateTime;
         @Index(name = "idx_sales_date", columnList = "sale_date"),
         @Index(name = "idx_sales_product", columnList = "product_id"),
         @Index(name = "idx_sales_channel", columnList = "channel"),
-        @Index(name = "idx_sales_payment", columnList = "payment_method")
+        @Index(name = "idx_sales_payment", columnList = "payment_method"),
+        @Index(name = "idx_sales_customer", columnList = "customer_id")
 })
 public class Sale {
 
@@ -19,10 +19,11 @@ public class Sale {
     @Column(name = "sale_id")
     private Long saleId;
 
+    // Usa TIMESTAMP en DB (sale_date)
     @Column(name = "sale_date", nullable = false)
-    private LocalDate saleDate;
+    private LocalDateTime saleDate;
 
-    @Column(name = "remision_venta", length = 100)
+    @Column(name = "remision_venta", length = 100, nullable = false)
     private String remisionVenta;
 
     @Column(name = "transaction_type", nullable = false, length = 60)
@@ -47,12 +48,16 @@ public class Sale {
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "customer_id", nullable = false)
+    private Customer customer;
+
     // Getters y setters
     public Long getSaleId() { return saleId; }
     public void setSaleId(Long saleId) { this.saleId = saleId; }
 
-    public LocalDate getSaleDate() { return saleDate; }
-    public void setSaleDate(LocalDate saleDate) { this.saleDate = saleDate; }
+    public LocalDateTime getSaleDate() { return saleDate; }
+    public void setSaleDate(LocalDateTime saleDate) { this.saleDate = saleDate; }
 
     public String getRemisionVenta() { return remisionVenta; }
     public void setRemisionVenta(String remisionVenta) { this.remisionVenta = remisionVenta; }
@@ -77,4 +82,7 @@ public class Sale {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public Customer getCustomer() { return customer; }
+    public void setCustomer(Customer customer) { this.customer = customer; }
 }
