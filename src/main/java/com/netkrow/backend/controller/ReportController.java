@@ -1,5 +1,6 @@
 package com.netkrow.backend.controller;
 
+import com.netkrow.backend.dto.RemissionSummaryDto;
 import com.netkrow.backend.dto.VolumeDto;
 import com.netkrow.backend.service.ReportService;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -30,9 +31,19 @@ public class ReportController {
         return reportService.getVolumeReport(from, to, null, estado);
     }
 
+    @GetMapping("/summary")
+    public RemissionSummaryDto getRemissionSummary(
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @RequestParam
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
+            @RequestParam(required = false) String estado
+    ) {
+        return reportService.getRemissionSummary(from, to, estado);
+    }
+
     @GetMapping("/equipos")
     public List<String> getEquipos() {
-        // Sin columna 'equipo' en remissions, devolvemos vacío.
         return reportService.getDistinctEquipos();
     }
 }
