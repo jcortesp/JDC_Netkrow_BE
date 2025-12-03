@@ -1,13 +1,11 @@
 package com.netkrow.backend.controller;
 
-import com.netkrow.backend.dto.RemissionSummaryDto;
-import com.netkrow.backend.dto.VolumeDto;
+import com.netkrow.backend.dto.FullReportDto;
 import com.netkrow.backend.service.ReportService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/reports/remissions")
@@ -19,31 +17,19 @@ public class ReportController {
         this.reportService = reportService;
     }
 
-    @GetMapping("/volume")
-    public List<VolumeDto> getVolumeReport(
-            @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-            @RequestParam(required = false) String estado,
-            @RequestParam(required = false) String equipo // aceptado pero ignorado
-    ) {
-        return reportService.getVolumeReport(from, to, null, estado);
-    }
-
+    /**
+     * Endpoint único de reporte:
+     * GET /api/reports/remissions/summary?from=...&to=...
+     *
+     * Devuelve todos los KPIs (remisiones, ventas, global).
+     */
     @GetMapping("/summary")
-    public RemissionSummaryDto getRemissionSummary(
+    public FullReportDto getFullReport(
             @RequestParam
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to,
-            @RequestParam(required = false) String estado
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
     ) {
-        return reportService.getRemissionSummary(from, to, estado);
-    }
-
-    @GetMapping("/equipos")
-    public List<String> getEquipos() {
-        return reportService.getDistinctEquipos();
+        return reportService.getFullReport(from, to);
     }
 }

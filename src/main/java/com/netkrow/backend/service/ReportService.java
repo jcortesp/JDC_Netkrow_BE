@@ -1,16 +1,17 @@
 package com.netkrow.backend.service;
 
-import com.netkrow.backend.dto.RemissionSummaryDto;
-import com.netkrow.backend.dto.VolumeDto;
+import com.netkrow.backend.dto.FullReportDto;
+import com.netkrow.backend.dto.GlobalKpiDto;
+import com.netkrow.backend.dto.RemissionKpiDto;
+import com.netkrow.backend.dto.SalesKpiDto;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.Query;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.LocalDateTime;
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class ReportService {
@@ -24,192 +25,148 @@ public class ReportService {
     }
 
     /**
-     * Reporte de volumen por fecha y estado (remisiones),
-     * mismo comportamiento que ya tenías.
+     * Reporte completo de KPIs para remisiones, ventas y global.
      */
     @Transactional(readOnly = true)
-    public List<VolumeDto> getVolumeReport(
-            LocalDateTime from,
-            LocalDateTime to,
-            String equipo,   // ignorado (no existe en la tabla)
-            String estado    // "Entregado" | "Pendiente" | null/blank
-    ) {
-        StringBuilder sql = new StringBuilder()
-                .append("SELECT ")
-                .append("  DATE(created_at) AS fecha, ")
-                .append("  CASE WHEN fecha_salida IS NOT NULL THEN 'Entregado' ELSE 'Pendiente' END AS estado, ")
-                .append("  COUNT(*) AS total_remisiones, ")
-                .append("  SUM(COALESCE(total_value,0)) AS total_valor ")
-                .append("FROM remissions ")
-                .append("WHERE created_at BETWEEN :from AND :to ");
+    public FullReportDto getFullReport(LocalDateTime from, LocalDateTime to) {
 
-        boolean filterEstado = estado != null && !estado.isBlank();
-        if (filterEstado) {
-            sql.append("AND (")
-                    .append("     (fecha_salida IS NOT NULL AND :estado = 'Entregado') ")
-                    .append("  OR (fecha_salida IS NULL     AND :estado = 'Pendiente')")
-                    .append(") ");
-        }
+        // ==========================
+        // 1) REMISIONES
+        // ==========================
 
-        sql.append("GROUP BY DATE(created_at), estado ")
-           .append("ORDER BY DATE(created_at), estado");
+        // 1.1 Total de remisiones
+        Query qRemCount = em.createNativeQuery("""
+                SELECT COUNT(*) 
+                FROM remissions r
+                WHERE r.created_at BETWEEN :from AND :to
+                """);
+        qRemCount.setParameter("from", from);
+        qRemCount.setParameter("to", to);
+        long totalRemisiones = ((Number) qRemCount.getSingleResult()).longValue();
 
-        Query q = em.createNativeQuery(sql.toString());
-        q.setParameter("from", from);
-        q.setParameter("to", to);
-        if (filterEstado) {
-            q.setParameter("estado", estado);
-        }
-
-        @SuppressWarnings("unchecked")
-        List<Object[]> rows = q.getResultList();
-
-        return rows.stream().map(r -> {
-            java.sql.Date fechaSql = (java.sql.Date) r[0];
-            String st = (String) r[1];
-            long cnt = ((Number) r[2]).longValue();
-
-            Object rawTotal = r[3];
-            BigDecimal totalVal = (rawTotal instanceof BigDecimal)
-                    ? (BigDecimal) rawTotal
-                    : BigDecimal.valueOf(((Number) rawTotal).doubleValue());
-
-            return new VolumeDto(
-        fechaSql.toLocalDate(),
-        st,
-        cnt,
-        totalVal
-);
-
-        }).collect(Collectors.toList());
-    }
-
-    /**
-     * Resumen: #equipos por estado, valor por estado, ingresos reales
-     * (remisiones + ventas) y gastos/neto.
-     */
-    @Transactional(readOnly = true)
-    public RemissionSummaryDto getRemissionSummary(
-            LocalDateTime from,
-            LocalDateTime to,
-            String estado // opcional, mismo filtro de arriba
-    ) {
-        // 1) Equipos y valor por estado usando technical_records + remissions
-        StringBuilder sqlEquipos = new StringBuilder()
-                .append("SELECT ")
-                .append("  CASE WHEN r.fecha_salida IS NOT NULL THEN 'Entregado' ELSE 'Pendiente' END AS estado, ")
-                .append("  COUNT(tr.id) AS total_equipos, ")
-                .append("  SUM( CASE ")
-                .append("         WHEN tr.dado_baja = false THEN COALESCE(tr.valor, 0) ")
-                .append("         WHEN tr.dado_baja = true  THEN COALESCE(tr.revision_valor, 0) ")
-                .append("         ELSE 0 ")
-                .append("      END ) AS total_valor_equipos ")
-                .append("FROM remissions r ")
-                .append("JOIN technical_records tr ON tr.remission_id = r.id ")
-                .append("WHERE r.created_at BETWEEN :from AND :to ");
-
-        boolean filterEstado = estado != null && !estado.isBlank();
-        if (filterEstado) {
-            sqlEquipos.append("AND (")
-                    .append("     (r.fecha_salida IS NOT NULL AND :estado = 'Entregado') ")
-                    .append("  OR (r.fecha_salida IS NULL     AND :estado = 'Pendiente')")
-                    .append(") ");
-        }
-
-        sqlEquipos.append("GROUP BY estado");
-
-        Query qEquipos = em.createNativeQuery(sqlEquipos.toString());
+        // 1.2 Total equipos y valor equipos (por si luego quieres usarlo; ahora usamos solo totalEquipos)
+        Query qEquipos = em.createNativeQuery("""
+                SELECT
+                    COALESCE(COUNT(tr.id), 0) AS total_equipos,
+                    COALESCE(SUM(
+                        CASE
+                            WHEN tr.dado_baja = false THEN COALESCE(tr.valor, 0)
+                            WHEN tr.dado_baja = true  THEN COALESCE(tr.revision_valor, 0)
+                            ELSE 0
+                        END
+                    ), 0) AS total_valor_equipos
+                FROM remissions r
+                JOIN technical_records tr ON tr.remission_id = r.id
+                WHERE r.created_at BETWEEN :from AND :to
+                """);
         qEquipos.setParameter("from", from);
         qEquipos.setParameter("to", to);
-        if (filterEstado) {
-            qEquipos.setParameter("estado", estado);
-        }
 
-        long equiposPendientes = 0L;
-        long equiposEntregados = 0L;
-        BigDecimal valorPend = BigDecimal.ZERO;
-        BigDecimal valorEnt = BigDecimal.ZERO;
+        Object[] eqRow = (Object[]) qEquipos.getSingleResult();
+        long totalEquipos = eqRow[0] != null ? ((Number) eqRow[0]).longValue() : 0L;
+        // BigDecimal totalValorEquipos = toBigDecimal(eqRow[1]); // disponible si lo necesitas luego
 
-        @SuppressWarnings("unchecked")
-        List<Object[]> equiposRows = qEquipos.getResultList();
-        for (Object[] row : equiposRows) {
-            String st = (String) row[0];
-            long count = ((Number) row[1]).longValue();
-            Object rawVal = row[2];
-            BigDecimal totalVal = (rawVal instanceof BigDecimal)
-                    ? (BigDecimal) rawVal
-                    : BigDecimal.valueOf(((Number) rawVal).doubleValue());
+        // 1.3 Ingresos por remisiones (pendientes = abono, entregadas = total_value)
+        Query qIngRem = em.createNativeQuery("""
+                SELECT COALESCE(SUM(
+                    CASE
+                        WHEN fecha_salida IS NOT NULL THEN COALESCE(total_value, 0)
+                        ELSE COALESCE(deposit_value, 0)
+                    END
+                ), 0)
+                FROM remissions
+                WHERE created_at BETWEEN :from AND :to
+                """);
+        qIngRem.setParameter("from", from);
+        qIngRem.setParameter("to", to);
+        BigDecimal ingresosRemisiones = toBigDecimal(qIngRem.getSingleResult());
 
-            if ("Entregado".equalsIgnoreCase(st)) {
-                equiposEntregados += count;
-                valorEnt = valorEnt.add(totalVal);
-            } else {
-                equiposPendientes += count;
-                valorPend = valorPend.add(totalVal);
-            }
-        }
+        // 1.4 Ticket promedio por remisión
+        BigDecimal ticketPromedioRemision =
+                totalRemisiones > 0
+                        ? ingresosRemisiones.divide(BigDecimal.valueOf(totalRemisiones), 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
 
-        // 2) Ingresos reales por remisiones (pendiente -> deposit_value, entregado -> total_value)
-        StringBuilder sqlRemisiones = new StringBuilder()
-                .append("SELECT ")
-                .append("  SUM( CASE ")
-                .append("         WHEN fecha_salida IS NOT NULL THEN COALESCE(total_value, 0) ")
-                .append("         ELSE COALESCE(deposit_value, 0) ")
-                .append("      END ) AS ingresos_remisiones ")
-                .append("FROM remissions ")
-                .append("WHERE created_at BETWEEN :from AND :to ");
+        // ==========================
+        // 2) VENTAS
+        // ==========================
 
-        if (filterEstado) {
-            sqlRemisiones.append("AND (")
-                    .append("     (fecha_salida IS NOT NULL AND :estado = 'Entregado') ")
-                    .append("  OR (fecha_salida IS NULL     AND :estado = 'Pendiente')")
-                    .append(") ");
-        }
-
-        Query qRem = em.createNativeQuery(sqlRemisiones.toString());
-        qRem.setParameter("from", from);
-        qRem.setParameter("to", to);
-        if (filterEstado) {
-            qRem.setParameter("estado", estado);
-        }
-
-        BigDecimal ingresosRemisiones = toBigDecimal(qRem.getSingleResult());
-
-        // 3) Ingresos por ventas
-        String sqlVentas = """
-                SELECT COALESCE(SUM(s.sale_value), 0)
+        Query qVentas = em.createNativeQuery("""
+                SELECT
+                    COALESCE(SUM(s.sale_value), 0) AS total_ventas,
+                    COUNT(*) AS total_transacciones,
+                    COALESCE(SUM(s.unit_qty), 0) AS productos_totales
                 FROM sales s
                 WHERE s.sale_date BETWEEN :from AND :to
-                """;
-        Query qVentas = em.createNativeQuery(sqlVentas);
+                """);
         qVentas.setParameter("from", from);
         qVentas.setParameter("to", to);
-        BigDecimal ingresosVentas = toBigDecimal(qVentas.getSingleResult());
 
-        // 4) Total gastos (via ExpenseService)
+        Object[] vRow = (Object[]) qVentas.getSingleResult();
+        BigDecimal totalVentas = toBigDecimal(vRow[0]);
+        long totalTransacciones = vRow[1] != null ? ((Number) vRow[1]).longValue() : 0L;
+        long productosTotales = vRow[2] != null ? ((Number) vRow[2]).longValue() : 0L;
+
+        // Ticket promedio por venta (monto promedio por transacción)
+        BigDecimal ticketPromedioVenta =
+                totalTransacciones > 0
+                        ? totalVentas.divide(BigDecimal.valueOf(totalTransacciones), 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+
+        // Unidades promedio por venta
+        BigDecimal unidadesPromedioPorVenta =
+                totalTransacciones > 0
+                        ? BigDecimal.valueOf(productosTotales)
+                        .divide(BigDecimal.valueOf(totalTransacciones), 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+
+        // Unidades promedio por remisión
+        BigDecimal unidadesPromedioPorRemision =
+                totalRemisiones > 0
+                        ? BigDecimal.valueOf(productosTotales)
+                        .divide(BigDecimal.valueOf(totalRemisiones), 2, RoundingMode.HALF_UP)
+                        : BigDecimal.ZERO;
+
+        // ==========================
+        // 3) GASTOS & GLOBAL
+        // ==========================
+
+        // 3.1 Total gastos usando ExpenseService
         BigDecimal totalGastos = expenseService.getTotalExpenses(from, to);
 
-        // 5) Total ingresos y neto
-        BigDecimal ingresosTotales = ingresosRemisiones.add(ingresosVentas);
+        // 3.2 Ingresos totales (remisiones + ventas)
+        BigDecimal ingresosTotales = ingresosRemisiones.add(totalVentas);
+
+        // 3.3 Ingreso neto
         BigDecimal ingresoNeto = ingresosTotales.subtract(totalGastos);
 
-        return new RemissionSummaryDto(
-                equiposPendientes,
-                equiposEntregados,
-                valorPend,
-                valorEnt,
+        // ==========================
+        // 4) Construir DTOs
+        // ==========================
+
+        RemissionKpiDto remisionesDto = new RemissionKpiDto(
+                totalRemisiones,
+                totalEquipos,
                 ingresosRemisiones,
-                ingresosVentas,
+                ticketPromedioRemision,
+                unidadesPromedioPorRemision
+        );
+
+        SalesKpiDto ventasDto = new SalesKpiDto(
+                totalTransacciones,
+                productosTotales,
+                totalVentas,
+                ticketPromedioVenta,
+                unidadesPromedioPorVenta
+        );
+
+        GlobalKpiDto globalDto = new GlobalKpiDto(
                 ingresosTotales,
                 totalGastos,
                 ingresoNeto
         );
-    }
 
-    @Transactional(readOnly = true)
-    public List<String> getDistinctEquipos() {
-        // De momento seguimos devolviendo lista vacía
-        return List.of();
+        return new FullReportDto(remisionesDto, ventasDto, globalDto);
     }
 
     // Helper seguro para convertir cualquier Number/BigDecimal a BigDecimal
