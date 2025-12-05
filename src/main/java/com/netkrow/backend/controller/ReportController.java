@@ -1,6 +1,7 @@
 package com.netkrow.backend.controller;
 
 import com.netkrow.backend.dto.FullReportDto;
+import com.netkrow.backend.dto.MonthlyReportDto;
 import com.netkrow.backend.service.ReportService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -13,15 +14,13 @@ public class ReportController {
 
     private final ReportService reportService;
 
+    // ✅ CORRECTO: inyectar ReportService, NO ReportController
     public ReportController(ReportService reportService) {
         this.reportService = reportService;
     }
 
     /**
-     * Endpoint único de reporte:
-     * GET /api/reports/remissions/summary?from=...&to=...
-     *
-     * Devuelve todos los KPIs (remisiones, ventas, global).
+     * Endpoint principal para KPIs por rango
      */
     @GetMapping("/summary")
     public FullReportDto getFullReport(
@@ -31,5 +30,13 @@ public class ReportController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to
     ) {
         return reportService.getFullReport(from, to);
+    }
+
+    /**
+     * Datos mensuales (últimos 12 meses)
+     */
+    @GetMapping("/monthly")
+    public MonthlyReportDto getMonthlyReport() {
+        return reportService.getMonthlyReport();
     }
 }
