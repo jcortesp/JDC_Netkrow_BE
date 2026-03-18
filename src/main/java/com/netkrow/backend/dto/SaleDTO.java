@@ -9,6 +9,7 @@ public class SaleDTO {
     private String remisionVenta;
     private String transactionType;
     private Long productId;
+    private String productName;
     private String channel;
     private Integer unitQty;
     private BigDecimal saleValue;
@@ -31,6 +32,9 @@ public class SaleDTO {
 
     public Long getProductId() { return productId; }
     public void setProductId(Long productId) { this.productId = productId; }
+
+    public String getProductName() { return productName; }
+    public void setProductName(String productName) { this.productName = productName; }
 
     public String getChannel() { return channel; }
     public void setChannel(String channel) { this.channel = channel; }

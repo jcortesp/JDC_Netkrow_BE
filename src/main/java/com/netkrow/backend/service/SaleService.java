@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -131,6 +132,7 @@ public class SaleService {
                             || ch.contains(qq)
                             || tx.contains(qq);
                 })
+                .sorted(Comparator.comparing(Sale::getSaleDate, Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .map(this::toDTO)
                 .collect(Collectors.toList());
     }
@@ -145,8 +147,10 @@ public class SaleService {
         // Null-safe product
         if (s.getProduct() != null) {
             d.setProductId(s.getProduct().getProductId());
+            d.setProductName(s.getProduct().getName());
         } else {
             d.setProductId(null);
+            d.setProductName(null);
         }
 
         d.setChannel(s.getChannel());
