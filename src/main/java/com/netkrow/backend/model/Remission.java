@@ -43,6 +43,9 @@ public class Remission {
     @Column(nullable = false)
     private boolean garantia = false;
 
+    @Column(name = "celular")
+    private String celular;
+
     // —— Getters & setters ——
 
     public Long getId() { return id; }
@@ -71,6 +74,9 @@ public class Remission {
 
     public boolean isGarantia() { return garantia; }
     public void setGarantia(boolean garantia) { this.garantia = garantia; }
+
+    public String getCelular() { return celular; }
+    public void setCelular(String celular) { this.celular = celular; }
 
     // —— Lifecycle hooks para calcular saldo automáticamente ——
 
