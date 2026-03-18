@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class ExpenseService {
@@ -29,5 +30,10 @@ public class ExpenseService {
     @Transactional(readOnly = true)
     public BigDecimal getTotalExpenses(LocalDateTime from, LocalDateTime to) {
         return repository.sumAmountBetween(from, to);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Expense> getExpensesBetween(LocalDateTime from, LocalDateTime to) {
+        return repository.findByExpenseDateBetweenOrderByExpenseDateDesc(from, to);
     }
 }

@@ -5,6 +5,9 @@ import com.netkrow.backend.service.ExpenseService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/expenses")
 public class ExpenseController {
@@ -19,5 +22,13 @@ public class ExpenseController {
     public ResponseEntity<Expense> create(@RequestBody Expense expense) {
         Expense saved = service.create(expense);
         return ResponseEntity.ok(saved);
+    }
+
+    @GetMapping
+    public ResponseEntity<List<Expense>> listByRange(
+            @RequestParam LocalDateTime from,
+            @RequestParam LocalDateTime to
+    ) {
+        return ResponseEntity.ok(service.getExpensesBetween(from, to));
     }
 }

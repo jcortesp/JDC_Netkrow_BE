@@ -5,8 +5,10 @@ import com.netkrow.backend.security.JwtUtils;
 import com.netkrow.backend.service.UserService;
 import org.springframework.security.core.Authentication;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
@@ -79,17 +81,22 @@ public class AuthController {
     // LOGIN
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody User loginRequest) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        loginRequest.getEmail(),
-                        loginRequest.getPassword()
-                )
-        );
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        User dbUser = userService.findByEmail(loginRequest.getEmail())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
-        String jwt = jwtUtils.generateToken(dbUser);
-        return ResponseEntity.ok("{\"token\":\"" + jwt + "\"}");
+        try {
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            loginRequest.getEmail(),
+                            loginRequest.getPassword()
+                    )
+            );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            User dbUser = userService.findByEmail(loginRequest.getEmail())
+                    .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
+            String jwt = jwtUtils.generateToken(dbUser);
+            return ResponseEntity.ok("{\"token\":\"" + jwt + "\"}");
+        } catch (AuthenticationException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body("{\"error\":\"Credenciales inválidas\"}");
+        }
     }
 
     // Endpoint para obtener los datos del usuario autenticado (útil para validar roles)
