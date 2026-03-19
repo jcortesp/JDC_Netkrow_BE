@@ -33,12 +33,13 @@ public class AuthController {
     // REGISTRO
     @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody RegisterRequest request) {
-        if (userService.findByEmail(request.getEmail()).isPresent()) {
+        String normalizedEmail = request.getEmail() == null ? "" : request.getEmail().trim().toLowerCase();
+        if (userService.findByEmail(normalizedEmail).isPresent()) {
             return ResponseEntity.badRequest().body("Error: El email ya está en uso.");
         }
         User user = new User();
         user.setName(request.getName());
-        user.setEmail(request.getEmail());
+        user.setEmail(normalizedEmail);
         user.setPassword(request.getPassword());
         // Si se envía un rol, se respeta; en caso contrario, UserService asigna "ROLE_CLIENT" por defecto
         if (request.getRole() != null && !request.getRole().isEmpty()) {
@@ -53,20 +54,26 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody User loginRequest) {
         try {
+            String normalizedEmail = loginRequest.getEmail() == null
+                ? ""
+                : loginRequest.getEmail().trim().toLowerCase();
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            loginRequest.getEmail(),
+                    normalizedEmail,
                             loginRequest.getPassword()
                     )
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
-            User dbUser = userService.findByEmail(loginRequest.getEmail())
+            User dbUser = userService.findByEmail(normalizedEmail)
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
             String jwt = jwtUtils.generateToken(dbUser);
             return ResponseEntity.ok(Map.of("token", jwt));
         } catch (AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of("error", "Credenciales inválidas"));
+                .body(Map.of(
+                    "error", "Credenciales inválidas",
+                    "message", "Credenciales inválidas"
+                ));
         }
     }
 

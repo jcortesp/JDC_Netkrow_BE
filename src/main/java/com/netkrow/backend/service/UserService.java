@@ -42,7 +42,10 @@ public class UserService implements UserDetailsService {
     }
 
     public Optional<User> findByEmail(String email) {
-        return userRepository.findByEmail(email);
+        if (email == null) {
+            return Optional.empty();
+        }
+        return userRepository.findByEmailIgnoreCase(email.trim());
     }
 
     public Iterable<User> getAllUsers() {
@@ -51,7 +54,8 @@ public class UserService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+        String normalizedEmail = email == null ? "" : email.trim();
+        User user = userRepository.findByEmailIgnoreCase(normalizedEmail)
                 .orElseThrow(() -> new UsernameNotFoundException("No se encontró el usuario con email: " + email));
         Set<SimpleGrantedAuthority> authorities = user.getRoles().stream()
                 .map(SimpleGrantedAuthority::new)
