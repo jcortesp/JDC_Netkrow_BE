@@ -34,7 +34,7 @@ http
     .csrf(csrf -> csrf.disable())
     .cors(cors -> {}) // <--- Habilita CORS en Security
     .authorizeHttpRequests(auth -> auth
-        .requestMatchers("/", "/error", "/favicon.ico").permitAll()
+        .requestMatchers("/", "/error", "/favicon.ico", "/api/health").permitAll()
         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
         .requestMatchers("/api/auth/**").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
