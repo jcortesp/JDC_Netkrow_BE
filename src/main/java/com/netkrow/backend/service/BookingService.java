@@ -88,7 +88,7 @@ public class BookingService {
         }
         booking.setStartTime(newStart);
         booking.setEndTime(newEnd);
-        booking.setStatus("MODIFIED");
+        booking.setStatus("PENDING");
         return bookingRepository.save(booking);
     }
 

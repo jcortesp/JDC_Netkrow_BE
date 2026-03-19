@@ -2,6 +2,7 @@
 package com.netkrow.backend.config;
 
 import com.netkrow.backend.security.JwtAuthorizationFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -37,10 +38,14 @@ http
         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
         .requestMatchers("/api/auth/**").permitAll()
         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
-        .requestMatchers(HttpMethod.GET, "/api/users").permitAll()
+        .requestMatchers(HttpMethod.GET, "/api/users").hasRole("ADMIN")
+        .requestMatchers("/api/rca/query").hasRole("ADMIN")
+        .requestMatchers("/api/rca/backtrace").hasRole("ADMIN")
         .requestMatchers(HttpMethod.POST, "/api/bookings").hasRole("CLIENT")
         .requestMatchers(HttpMethod.PUT, "/api/bookings/**").hasAnyRole("CLIENT", "SPECIALIST")
         .requestMatchers(HttpMethod.GET, "/api/bookings/**").authenticated()
+        .requestMatchers(HttpMethod.POST, "/api/bookings/*/confirm").hasRole("SPECIALIST")
+        .requestMatchers(HttpMethod.POST, "/api/bookings/**").hasAnyRole("CLIENT", "SPECIALIST")
         .requestMatchers(HttpMethod.POST, "/api/specialists/**").hasRole("SPECIALIST")
         .requestMatchers(HttpMethod.PUT, "/api/specialists/**").hasRole("SPECIALIST")
         .requestMatchers(HttpMethod.GET, "/api/specialists/**").authenticated()
@@ -48,8 +53,12 @@ http
         .requestMatchers(HttpMethod.GET, "/api/reviews/**").authenticated()
         .anyRequest().authenticated()
     )
-    .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-
+    .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+    .exceptionHandling(ex -> ex
+        .authenticationEntryPoint((request, response, authException) ->
+            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized")
+        )
+    );
 
         http.addFilterBefore(jwtAuthorizationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();

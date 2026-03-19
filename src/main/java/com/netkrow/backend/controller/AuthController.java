@@ -1,10 +1,10 @@
 package com.netkrow.backend.controller;
 
+import com.netkrow.backend.dto.RegisterRequest;
 import com.netkrow.backend.model.User;
 import com.netkrow.backend.security.JwtUtils;
 import com.netkrow.backend.service.UserService;
 import org.springframework.security.core.Authentication;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.*;
@@ -12,51 +12,22 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
 
-    @Autowired
-    private AuthenticationManager authenticationManager;
+    private final AuthenticationManager authenticationManager;
+    private final UserService userService;
+    private final JwtUtils jwtUtils;
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
-    private JwtUtils jwtUtils;
-
-    // DTO para el registro
-    public static class RegisterRequest {
-        private String name;
-        private String email;
-        private String password;
-        private String role;  // Ejemplo: "ROLE_CLIENT" o "ROLE_SPECIALIST"
-
-        // Getters y setters
-        public String getName() {
-            return name;
-        }
-        public void setName(String name) {
-            this.name = name;
-        }
-        public String getEmail() {
-            return email;
-        }
-        public void setEmail(String email) {
-            this.email = email;
-        }
-        public String getPassword() {
-            return password;
-        }
-        public void setPassword(String password) {
-            this.password = password;
-        }
-        public String getRole() {
-            return role;
-        }
-        public void setRole(String role) {
-            this.role = role;
-        }
+    public AuthController(AuthenticationManager authenticationManager,
+                          UserService userService,
+                          JwtUtils jwtUtils) {
+        this.authenticationManager = authenticationManager;
+        this.userService = userService;
+        this.jwtUtils = jwtUtils;
     }
 
     // REGISTRO
@@ -92,10 +63,10 @@ public class AuthController {
             User dbUser = userService.findByEmail(loginRequest.getEmail())
                     .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
             String jwt = jwtUtils.generateToken(dbUser);
-            return ResponseEntity.ok("{\"token\":\"" + jwt + "\"}");
+            return ResponseEntity.ok(Map.of("token", jwt));
         } catch (AuthenticationException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body("{\"error\":\"Credenciales inválidas\"}");
+                    .body(Map.of("error", "Credenciales inválidas"));
         }
     }
 

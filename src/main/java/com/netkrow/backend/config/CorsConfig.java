@@ -28,6 +28,9 @@ public class CorsConfig {
                                 frontendUrl,
                                 frontendProdUrl,
                                 frontendExtraUrl,
+                        "http://127.0.0.1:5173",
+                        "http://localhost:*",
+                        "http://127.0.0.1:*",
                                 "https://*.vercel.app"
                         )
                         .allowedMethods("GET","POST","PUT","DELETE","OPTIONS")

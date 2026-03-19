@@ -1,4 +1,3 @@
-// BookingController.java
 package com.netkrow.backend.controller;
 
 import com.netkrow.backend.model.Booking;
@@ -22,7 +21,7 @@ public class BookingController {
         private Long specialistId;
         private String startDateTime;
         private String endDateTime;
-        // Getters y setters...
+
         public Long getClientId() { return clientId; }
         public void setClientId(Long clientId) { this.clientId = clientId; }
         public Long getSpecialistId() { return specialistId; }
@@ -33,11 +32,10 @@ public class BookingController {
         public void setEndDateTime(String endDateTime) { this.endDateTime = endDateTime; }
     }
 
-    // NUEVO: DTO para modificación de reserva
     public static class BookingModificationRequest {
         private String newStartDateTime;
         private String newEndDateTime;
-        // Getters y setters...
+
         public String getNewStartDateTime() { return newStartDateTime; }
         public void setNewStartDateTime(String newStartDateTime) { this.newStartDateTime = newStartDateTime; }
         public String getNewEndDateTime() { return newEndDateTime; }
@@ -49,14 +47,9 @@ public class BookingController {
         DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
         LocalDateTime start = LocalDateTime.parse(request.getStartDateTime(), formatter);
         LocalDateTime end = LocalDateTime.parse(request.getEndDateTime(), formatter);
-
         try {
             Booking booking = bookingService.createBooking(
-                    request.getClientId(),
-                    request.getSpecialistId(),
-                    start,
-                    end
-            );
+                    request.getClientId(), request.getSpecialistId(), start, end);
             return ResponseEntity.ok(booking);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
@@ -68,7 +61,6 @@ public class BookingController {
         return ResponseEntity.ok(bookingService.getAllBookings());
     }
 
-    // NUEVO: Endpoint para obtener reservas de un mes específico
     @GetMapping("/month")
     public ResponseEntity<?> getBookingsByMonth(@RequestParam int year, @RequestParam int month) {
         try {
@@ -79,26 +71,38 @@ public class BookingController {
         }
     }
 
-    // NUEVO: Endpoint para modificar una reserva
     @PutMapping("/{bookingId}/modify")
-    public ResponseEntity<?> modifyBooking(@PathVariable Long bookingId, @RequestBody BookingModificationRequest request) {
+    public ResponseEntity<?> modifyBooking(@PathVariable Long bookingId,
+                                           @RequestBody BookingModificationRequest request) {
         DateTimeFormatter formatter = DateTimeFormatter.ISO_LOCAL_DATE_TIME;
         LocalDateTime newStart = LocalDateTime.parse(request.getNewStartDateTime(), formatter);
         LocalDateTime newEnd = LocalDateTime.parse(request.getNewEndDateTime(), formatter);
         try {
-            Booking updatedBooking = bookingService.modifyReservation(bookingId, newStart, newEnd);
-            return ResponseEntity.ok(updatedBooking);
+            Booking updated = bookingService.modifyReservation(bookingId, newStart, newEnd);
+            return ResponseEntity.ok(updated);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }
     }
 
-    // NUEVO: Endpoint para cancelar una reserva
+    /** Cancela una reserva. Acepta POST (FE) y PUT (REST). */
+    @PostMapping("/{bookingId}/cancel")
     @PutMapping("/{bookingId}/cancel")
     public ResponseEntity<?> cancelBooking(@PathVariable Long bookingId) {
         try {
-            Booking cancelledBooking = bookingService.cancelReservation(bookingId);
-            return ResponseEntity.ok(cancelledBooking);
+            Booking cancelled = bookingService.cancelReservation(bookingId);
+            return ResponseEntity.ok(cancelled);
+        } catch (RuntimeException e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    /** Confirma una reserva (solo especialistas). */
+    @PostMapping("/{bookingId}/confirm")
+    public ResponseEntity<?> confirmBooking(@PathVariable Long bookingId) {
+        try {
+            Booking confirmed = bookingService.confirmReservation(bookingId);
+            return ResponseEntity.ok(confirmed);
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(e.getMessage());
         }

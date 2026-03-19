@@ -1,5 +1,7 @@
 package com.netkrow.backend.controller;
 
+import com.netkrow.backend.dto.DeliveryRequest;
+import com.netkrow.backend.dto.DropRequest;
 import com.netkrow.backend.model.Remission;
 import com.netkrow.backend.service.RemissionService;
 import org.springframework.http.ResponseEntity;
@@ -15,23 +17,6 @@ public class RemissionController {
 
     public RemissionController(RemissionService service) {
         this.service = service;
-    }
-
-    // DTO para entrega normal
-    public static class DeliveryRequest {
-        private String metodoSaldo;
-        public String getMetodoSaldo() { return metodoSaldo; }
-        public void setMetodoSaldo(String metodoSaldo) { this.metodoSaldo = metodoSaldo; }
-    }
-
-    // DTO para dar de baja
-    public static class DropRequest {
-        private boolean cobrarRevision;
-        private Double revisionValue;
-        public boolean isCobrarRevision() { return cobrarRevision; }
-        public void setCobrarRevision(boolean cobrarRevision) { this.cobrarRevision = cobrarRevision; }
-        public Double getRevisionValue() { return revisionValue; }
-        public void setRevisionValue(Double revisionValue) { this.revisionValue = revisionValue; }
     }
 
     @PostMapping
